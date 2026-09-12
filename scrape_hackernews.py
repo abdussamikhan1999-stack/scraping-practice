@@ -19,6 +19,7 @@ details), and fetching those details one at a time would be exactly the
 slow, mostly-idle pattern that script demonstrated — so this uses the
 same httpx + asyncio.gather approach.
 """
+import argparse
 import asyncio
 import csv
 
@@ -26,7 +27,7 @@ import httpx
 
 TOP_STORIES_URL = "https://hacker-news.firebaseio.com/v0/topstories.json"
 ITEM_URL = "https://hacker-news.firebaseio.com/v0/item/{}.json"
-STORY_LIMIT = 30  # self-imposed cap, not the full ~500-story list
+DEFAULT_STORY_LIMIT = 30  # self-imposed cap, not the full ~500-story list
 
 
 async def fetch_story(client, story_id):
@@ -43,6 +44,7 @@ def stories_to_rows(stories):
     """
     return [
         {
+            "id": s["id"],  # HN's own story id — stable across runs, used as the DB key
             "title": s.get("title", ""),
             "url": s.get("url", ""),  # missing for text/"Ask HN" posts
             "score": s.get("score", 0),
@@ -54,11 +56,11 @@ def stories_to_rows(stories):
     ]
 
 
-async def scrape_top_stories():
+async def scrape_top_stories(limit=DEFAULT_STORY_LIMIT):
     async with httpx.AsyncClient() as client:
         ids_response = await client.get(TOP_STORIES_URL, timeout=10)
         ids_response.raise_for_status()
-        story_ids = ids_response.json()[:STORY_LIMIT]
+        story_ids = ids_response.json()[:limit]
 
         stories = await asyncio.gather(*(fetch_story(client, sid) for sid in story_ids))
 
@@ -67,14 +69,32 @@ async def scrape_top_stories():
 
 def save_csv(stories, path="hackernews.csv"):
     with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["title", "url", "score", "author", "comments"])
+        writer = csv.DictWriter(f, fieldnames=["id", "title", "url", "score", "author", "comments"])
         writer.writeheader()
         writer.writerows(stories)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Scrape Hacker News' front page via its official API.")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_STORY_LIMIT,
+        help=f"how many top stories to fetch (default: {DEFAULT_STORY_LIMIT})",
+    )
+    parser.add_argument(
+        "--out",
+        default="hackernews.csv",
+        help="output CSV path (default: hackernews.csv)",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    stories = asyncio.run(scrape_top_stories())
+    args = parse_args()
+
+    stories = asyncio.run(scrape_top_stories(limit=args.limit))
     stories.sort(key=lambda s: s["score"], reverse=True)
-    save_csv(stories)
-    print(f"Saved {len(stories)} stories to hackernews.csv")
+    save_csv(stories, path=args.out)
+    print(f"Saved {len(stories)} stories to {args.out}")
     print(f"Top story: \"{stories[0]['title']}\" ({stories[0]['score']} points)")

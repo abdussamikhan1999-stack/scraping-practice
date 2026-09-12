@@ -18,6 +18,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `scrape_books_db.py` + `query_books.py` | books.toscrape.com | `sqlite3` | Same books data as `scrape_books.py`, stored in SQLite instead of CSV, plus real SQL queries on top |
 | `scrape_github.py` | GitHub API (your own account) | `requests` + real OAuth token | A genuinely authenticated login, replacing `scrape_quotes_login.py`'s fake one — fetches data only this account can see |
 | `test_parsing.py` | (tests, not a scraper) | pytest, against saved fixtures | Tests the parsing/transformation logic without hitting the network on every run |
+| `track_hackernews.py` + `query_hackernews_history.py` | Hacker News (real site) | `sqlite3` (UPSERT + APPEND) | Records a timestamped snapshot every run instead of overwriting, so score/comment changes over time are actually queryable |
 
 ## Setup
 
@@ -39,11 +40,14 @@ python scrape_quotes_api.py  # -> quotes_api.csv (same 100 quotes, no browser)
 python scrape_quotes_login.py  # -> quotes_login.csv (same quotes + goodreads_link, only visible logged in)
 python scrape_quotes_concurrent.py  # -> quotes_concurrent.csv (same quotes, ~9x faster)
 scrapy runspider books_spider.py -o books_scrapy.csv  # -> same 1000 books, via Scrapy
-python scrape_hackernews.py  # -> hackernews.csv (top 30 HN stories, real site)
+python scrape_hackernews.py               # -> hackernews.csv (top 30 HN stories, real site)
+python scrape_hackernews.py --limit 100 --out top100.csv  # CLI args, not hardcoded constants
 python scrape_books_db.py    # -> books.db (same 1000 books, in SQLite)
 python query_books.py        # -> runs real SQL queries against books.db
 python scrape_github.py       # -> github_repos.csv (your own repos, via authenticated API)
 pytest -v                     # -> runs the test suite against fixtures/, no network needed
+python track_hackernews.py    # -> hackernews_history.db; run this again later to accumulate history
+python query_hackernews_history.py  # -> shows score/comment growth across however many runs you've done
 ```
 
 ## Lessons learned
@@ -213,3 +217,32 @@ pytest -v                     # -> runs the test suite against fixtures/, no net
   `parse_books()` (hardcoded every rating to `0`), reran pytest, watched
   2 of the 6 tests fail with the exact assertion you'd expect, then
   restored the real code and confirmed all 6 pass again.
+- **`track_hackernews.py` / `query_hackernews_history.py`**: every other
+  storage script in this repo (`scrape_books_db.py` included) overwrites
+  its data on each run — fine for a catalogue that barely changes, wrong
+  for HN scores/comment counts that change constantly. This uses two
+  tables with deliberately different write patterns:
+  - `stories` — **UPSERT** (`INSERT ... ON CONFLICT DO UPDATE`), keyed on
+    HN's own story id. Running this script twice never creates a
+    duplicate row per story; it just refreshes title/url/author in place.
+  - `score_snapshots` — **plain APPEND**, one new row per story every
+    single run, with a timestamp. Never updated, never deleted.
+  Verified both behaviors directly rather than assuming the SQL was
+  right: ran the script twice back to back — `stories` stayed at exactly
+  30 rows both times (confirmed via `COUNT(DISTINCT id)`), while
+  `score_snapshots` grew from 30 → 60. `query_hackernews_history.py`
+  compares each story's earliest vs. latest recorded score — with the two
+  test runs only 12 seconds apart, every delta came back `+0`, which is
+  the *correct*, expected result for that gap, not a bug; the query only
+  becomes interesting once you run `track_hackernews.py` periodically
+  over hours/days.
+- **CLI arguments** (`scrape_hackernews.py --limit/--out`,
+  `track_hackernews.py --limit/--db`): both scripts used to hardcode a
+  `STORY_LIMIT` constant. Replaced with `argparse` (kept a
+  `DEFAULT_STORY_LIMIT` for when no flag is passed, imported by
+  `track_hackernews.py` so the default lives in one place). Verified all
+  three states work, not just the happy path: the existing pytest suite
+  still passes untouched (the refactor didn't change
+  `stories_to_rows()`'s behavior), a custom `--limit 5 --out
+  hn_top5.csv` run produced exactly 6 lines (header + 5 rows), and
+  `--help` prints usable usage text.

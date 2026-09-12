@@ -10,3 +10,6 @@ books_scrapy.csv
 hackernews.csv
 books.db
 github_repos.csv
+hackernews_history.db
+hn_top5.csv
+top100.csv

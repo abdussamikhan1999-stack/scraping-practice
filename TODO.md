@@ -4,14 +4,12 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-Nothing queued — this round is complete. Good candidates for a future
-round, roughly in order of what'd teach the most next: a proper CLI
-(argparse) instead of hardcoded constants like `STORY_LIMIT`; a scheduled
-run (cron or similar) that appends to the database over time instead of
-replacing it, to practice incremental/upsert logic instead of
-delete-and-reinsert; or genuinely tackling a site that needs
-`curl_cffi`/stealth-browser tricks (see below for why that's not this
-round either).
+Nothing queued — this (third) round is complete too. Good candidates for
+a future round: actually scheduling `track_hackernews.py` (cron or
+similar) to run periodically and build up real multi-day history instead
+of the two-runs-12-seconds-apart demo this round produced; or genuinely
+tackling a site that needs `curl_cffi`/stealth-browser tricks (see below
+for why that's not this round either).
 
 ## Deliberately not doing this round
 
@@ -63,3 +61,13 @@ round either).
   pure function first so it was testable at all. Verified the tests
   actually catch a regression, not just that they pass: deliberately
   broke `parse_books()`, watched 2/6 tests fail correctly, restored it.
+- [x] Incremental/upsert database updates (`track_hackernews.py` +
+  `query_hackernews_history.py`) — `stories` table UPSERTs (never
+  duplicates), `score_snapshots` table APPENDs (never overwrites, so
+  history actually accumulates). Verified by running it twice: `stories`
+  stayed at exactly 30 rows both times, `score_snapshots` grew 30 → 60.
+- [x] Proper CLI (`--limit`/`--out`/`--db` via `argparse`) on
+  `scrape_hackernews.py` and `track_hackernews.py`, replacing the
+  hardcoded `STORY_LIMIT` constant. Verified the existing test suite
+  still passes, a custom `--limit 5` produced exactly 5 rows, and
+  `--help` prints correctly.
