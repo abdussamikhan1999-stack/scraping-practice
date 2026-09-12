@@ -4,13 +4,14 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-- [ ] **Pin dependencies** — add a `requirements.txt` so the environment
-  is reproducible instead of "whatever was installed in this session."
-- [ ] **Automated tests for the scrapers** — write pytest tests for the
-  parsing logic specifically (not hitting the network on every test run —
-  test against saved fixture HTML/JSON instead), since verifying
-  extraction logic without depending on a live site staying unchanged is
-  the actual QA-relevant skill here.
+Nothing queued — this round is complete. Good candidates for a future
+round, roughly in order of what'd teach the most next: a proper CLI
+(argparse) instead of hardcoded constants like `STORY_LIMIT`; a scheduled
+run (cron or similar) that appends to the database over time instead of
+replacing it, to practice incremental/upsert logic instead of
+delete-and-reinsert; or genuinely tackling a site that needs
+`curl_cffi`/stealth-browser tricks (see below for why that's not this
+round either).
 
 ## Deliberately not doing this round
 
@@ -56,3 +57,9 @@ Next steps for this scraping-practice project, roughly in order.
   GitHub API via the `gh` CLI's existing token; found 1 private repo,
   proving the auth is real and not a no-op like the sandbox's fake login.
   Confirmed the token itself never got printed/logged/written anywhere.
+- [x] Automated tests (`test_parsing.py`) — pytest against fixtures
+  (`fixtures/`), no network required. Required pulling
+  `scrape_hackernews.py`'s row-transformation logic out into a separate
+  pure function first so it was testable at all. Verified the tests
+  actually catch a regression, not just that they pass: deliberately
+  broke `parse_books()`, watched 2/6 tests fail correctly, restored it.

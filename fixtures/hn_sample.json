@@ -1,0 +1,22 @@
+[
+  {
+    "by": "pg",
+    "descendants": 3,
+    "id": 1,
+    "score": 57,
+    "time": 1160418111,
+    "title": "Y Combinator",
+    "type": "story",
+    "url": "http://ycombinator.com"
+  },
+  {
+    "by": "someuser",
+    "descendants": 42,
+    "id": 2,
+    "score": 100,
+    "time": 1160418200,
+    "title": "Ask HN: What are you working on?",
+    "type": "story"
+  },
+  null
+]

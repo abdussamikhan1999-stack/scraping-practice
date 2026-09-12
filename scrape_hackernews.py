@@ -35,14 +35,12 @@ async def fetch_story(client, story_id):
     return response.json()
 
 
-async def scrape_top_stories():
-    async with httpx.AsyncClient() as client:
-        ids_response = await client.get(TOP_STORIES_URL, timeout=10)
-        ids_response.raise_for_status()
-        story_ids = ids_response.json()[:STORY_LIMIT]
-
-        stories = await asyncio.gather(*(fetch_story(client, sid) for sid in story_ids))
-
+def stories_to_rows(stories):
+    """
+    Pure transformation, deliberately separated from the network-fetching
+    code above it so it can be unit tested against fixture data (see
+    test_parsing.py) without hitting the network on every test run.
+    """
     return [
         {
             "title": s.get("title", ""),
@@ -54,6 +52,17 @@ async def scrape_top_stories():
         for s in stories
         if s is not None  # a story can be None if deleted between the two requests
     ]
+
+
+async def scrape_top_stories():
+    async with httpx.AsyncClient() as client:
+        ids_response = await client.get(TOP_STORIES_URL, timeout=10)
+        ids_response.raise_for_status()
+        story_ids = ids_response.json()[:STORY_LIMIT]
+
+        stories = await asyncio.gather(*(fetch_story(client, sid) for sid in story_ids))
+
+    return stories_to_rows(stories)
 
 
 def save_csv(stories, path="hackernews.csv"):

@@ -17,6 +17,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `scrape_hackernews.py` | Hacker News (real site) | `httpx` + `asyncio` | The first non-sandbox target — Hacker News' own official public API, not scraped HTML |
 | `scrape_books_db.py` + `query_books.py` | books.toscrape.com | `sqlite3` | Same books data as `scrape_books.py`, stored in SQLite instead of CSV, plus real SQL queries on top |
 | `scrape_github.py` | GitHub API (your own account) | `requests` + real OAuth token | A genuinely authenticated login, replacing `scrape_quotes_login.py`'s fake one — fetches data only this account can see |
+| `test_parsing.py` | (tests, not a scraper) | pytest, against saved fixtures | Tests the parsing/transformation logic without hitting the network on every run |
 
 ## Setup
 
@@ -42,6 +43,7 @@ python scrape_hackernews.py  # -> hackernews.csv (top 30 HN stories, real site)
 python scrape_books_db.py    # -> books.db (same 1000 books, in SQLite)
 python query_books.py        # -> runs real SQL queries against books.db
 python scrape_github.py       # -> github_repos.csv (your own repos, via authenticated API)
+pytest -v                     # -> runs the test suite against fixtures/, no network needed
 ```
 
 ## Lessons learned
@@ -196,3 +198,18 @@ python scrape_github.py       # -> github_repos.csv (your own repos, via authent
   response included **1 private repo** — something GitHub's API would
   simply omit for an unauthenticated request. That's the actual point of
   this script; the CSV of repo names is secondary to that.
+- **`test_parsing.py`**: unit tests for the parsing/transformation
+  functions, against saved fixtures (`fixtures/books_page1.html`, a real
+  snapshot fetched once; `fixtures/hn_sample.json`, hand-crafted to
+  include a real story plus two edge cases the live top-30 didn't happen
+  to contain when `scrape_hackernews.py` ran — a text/"Ask HN" post with
+  no `url` field, and a deleted story returned as JSON `null`) — not
+  hitting the network on every test run. Required a small refactor first:
+  `scrape_hackernews.py`'s story→row transformation was originally inline
+  inside the async network-fetching function, which made it untestable
+  without also mocking the network; pulled it out into a separate pure
+  `stories_to_rows()` function. **Verified the tests actually test
+  something**, not just that they pass: deliberately broke
+  `parse_books()` (hardcoded every rating to `0`), reran pytest, watched
+  2 of the 6 tests fail with the exact assertion you'd expect, then
+  restored the real code and confirmed all 6 pass again.
