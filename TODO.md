@@ -4,12 +4,31 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-Nothing currently queued — every item below is done. Good candidates for
-a future round: a login-required *real* site (as opposed to the sandbox's
-fake login), a site that actually needs `curl_cffi`/stealth-browser
-tricks to get past anti-bot protection (rather than just detecting one
-and switching targets, like `discover_api.py` did), or storing scraped
-data in a real database instead of a CSV.
+- [ ] **Pin dependencies** — add a `requirements.txt` so the environment
+  is reproducible instead of "whatever was installed in this session."
+- [ ] **SQLite storage** — refactor at least one scraper to write into a
+  local SQLite database instead of a CSV, plus a small script that runs
+  an actual SQL query against the result (e.g. "top 5 most expensive
+  books"), to see what a real query engine gives you over grepping a CSV.
+- [ ] **A real, genuinely authenticated real-login target** — the
+  `scrape_quotes_login.py` login is fake (any password works). Use the
+  GitHub API with the `gh` CLI's already-configured auth token to fetch
+  real, private-to-this-account data (e.g. your own repo list) — a
+  genuinely authenticated request against a real service, with zero
+  legal/ethical ambiguity since it's your own account's own data via the
+  official API.
+- [ ] **Automated tests for the scrapers** — write pytest tests for the
+  parsing logic specifically (not hitting the network on every test run —
+  test against saved fixture HTML/JSON instead), since verifying
+  extraction logic without depending on a live site staying unchanged is
+  the actual QA-relevant skill here.
+
+## Deliberately not doing this round
+
+- Anti-bot/stealth-browser tricks (`curl_cffi`, `camoufox`, etc.) against
+  a real protected site — riskier to demonstrate responsibly than the
+  items above, and `discover_api.py` already showed the alternative
+  (detect the wall, retarget) rather than trying to push through one.
 
 ## Done
 
