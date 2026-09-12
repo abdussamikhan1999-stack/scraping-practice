@@ -19,6 +19,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `scrape_github.py` | GitHub API (your own account) | `requests` + real OAuth token | A genuinely authenticated login, replacing `scrape_quotes_login.py`'s fake one — fetches data only this account can see |
 | `test_parsing.py` | (tests, not a scraper) | pytest, against saved fixtures | Tests the parsing/transformation logic without hitting the network on every run |
 | `track_hackernews.py` + `query_hackernews_history.py` | Hacker News (real site) | `sqlite3` (UPSERT + APPEND) | Records a timestamped snapshot every run instead of overwriting, so score/comment changes over time are actually queryable |
+| `bot_detection_test.py` | bot.sannysoft.com (a bot-detection *test* site) | Playwright + `playwright-stealth` | Measures what a headless browser reveals about itself, and whether stealth patching changes it — against a diagnostic tool built for exactly this, not a real protected site |
 
 ## Setup
 
@@ -48,6 +49,7 @@ python scrape_github.py       # -> github_repos.csv (your own repos, via authent
 pytest -v                     # -> runs the test suite against fixtures/, no network needed
 python track_hackernews.py    # -> hackernews_history.db; run this again later to accumulate history
 python query_hackernews_history.py  # -> shows score/comment growth across however many runs you've done
+python bot_detection_test.py  # -> bot_detection_comparison.csv, prints a before/after table
 ```
 
 ## Lessons learned
@@ -246,3 +248,33 @@ python query_hackernews_history.py  # -> shows score/comment growth across howev
   `stories_to_rows()`'s behavior), a custom `--limit 5 --out
   hn_top5.csv` run produced exactly 6 lines (header + 5 rows), and
   `--help` prints usable usage text.
+- **`bot_detection_test.py`**: this repo's `TODO.md` scoped out anti-bot/
+  stealth-browser tricks *against a real protected site* twice, on
+  purpose — deliberately defeating a specific site's anti-abuse measures
+  is a different (and riskier to demonstrate responsibly) thing than
+  everything else here. This reframes the same underlying lesson onto a
+  sanctioned target instead: `bot.sannysoft.com` is a diagnostic page
+  built specifically for developers to self-check what their automated
+  browser reveals — using it as intended isn't circumventing anything.
+  Measured, not assumed, what changes between default headless Playwright
+  and the same page with `playwright-stealth` applied (via
+  `Stealth().apply_stealth_sync(page)`), and ran it **twice** to confirm
+  the result was reproducible, not a fluke:
+
+  | Test | Without stealth | With stealth |
+  |---|---|---|
+  | WebDriver | present (**failed**) | missing (**passed**) |
+  | Chrome | missing (**failed**) | present (**passed**) |
+  | Plugins is of type PluginArray | **failed** | **passed** |
+  | Plugins Length | 0 | 3 |
+  | User Agent | contains `HeadlessChrome/151...` | contains `Chrome/151...` (no "Headless") |
+  | Permissions | `prompt` | `denied` |
+
+  **Worth being honest about the last row**: `Permissions` changing isn't
+  obviously an improvement — `denied` isn't self-evidently "more like a
+  real browser" than `prompt`, unlike the other five rows, which are
+  unambiguous (a real, non-automated Chrome genuinely has `navigator.
+  webdriver` undefined, a `window.chrome` object, real plugins, and a
+  non-headless UA string). Reporting a stealth library's effect
+  accurately means not treating every changed value as automatically a
+  win just because it changed.

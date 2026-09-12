@@ -4,19 +4,21 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-Nothing queued — this (third) round is complete too. Good candidates for
-a future round: actually scheduling `track_hackernews.py` (cron or
+Nothing queued — this (fourth) round is complete too. One good candidate
+for a future round: actually scheduling `track_hackernews.py` (cron or
 similar) to run periodically and build up real multi-day history instead
-of the two-runs-12-seconds-apart demo this round produced; or genuinely
-tackling a site that needs `curl_cffi`/stealth-browser tricks (see below
-for why that's not this round either).
+of the two-runs-12-seconds-apart demo this round produced.
 
-## Deliberately not doing this round
+## Deliberately still not doing
 
-- Anti-bot/stealth-browser tricks (`curl_cffi`, `camoufox`, etc.) against
-  a real protected site — riskier to demonstrate responsibly than the
-  items above, and `discover_api.py` already showed the alternative
-  (detect the wall, retarget) rather than trying to push through one.
+- `curl_cffi`/TLS-fingerprint spoofing, or stealth tricks aimed at an
+  actual real protected production site — `bot_detection_test.py`
+  covered the *underlying mechanism* (what a headless browser reveals,
+  and what stealth patching changes) against a sanctioned diagnostic
+  target instead. Actually pointing that at a real site whose owner put
+  up protection on purpose is still a different, more deliberately
+  adversarial thing than anything else in this repo, and stays out of
+  scope here.
 
 ## Done
 
@@ -71,3 +73,11 @@ for why that's not this round either).
   hardcoded `STORY_LIMIT` constant. Verified the existing test suite
   still passes, a custom `--limit 5` produced exactly 5 rows, and
   `--help` prints correctly.
+- [x] The bot-detection/stealth-browser lesson (`bot_detection_test.py`)
+  — reframed onto `bot.sannysoft.com` (a sanctioned diagnostic site) since
+  a real protected site was deliberately out of scope twice already.
+  Measured, not assumed: 6 of 7 tracked signals changed between default
+  headless Playwright and `playwright-stealth` applied, reproduced by
+  running it twice with identical results. Reported honestly that one
+  changed value (`Permissions: prompt -> denied`) isn't an obvious
+  improvement, unlike the other five.
