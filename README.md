@@ -16,6 +16,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `polite_requests.py` | (utility, not a scraper) | `requests` + `urllib.robotparser` | Wraps `requests.get()` with a real robots.txt check and retry-with-backoff; used by `scrape_books.py` |
 | `scrape_hackernews.py` | Hacker News (real site) | `httpx` + `asyncio` | The first non-sandbox target — Hacker News' own official public API, not scraped HTML |
 | `scrape_books_db.py` + `query_books.py` | books.toscrape.com | `sqlite3` | Same books data as `scrape_books.py`, stored in SQLite instead of CSV, plus real SQL queries on top |
+| `scrape_github.py` | GitHub API (your own account) | `requests` + real OAuth token | A genuinely authenticated login, replacing `scrape_quotes_login.py`'s fake one — fetches data only this account can see |
 
 ## Setup
 
@@ -40,6 +41,7 @@ scrapy runspider books_spider.py -o books_scrapy.csv  # -> same 1000 books, via 
 python scrape_hackernews.py  # -> hackernews.csv (top 30 HN stories, real site)
 python scrape_books_db.py    # -> books.db (same 1000 books, in SQLite)
 python query_books.py        # -> runs real SQL queries against books.db
+python scrape_github.py       # -> github_repos.csv (your own repos, via authenticated API)
 ```
 
 ## Lessons learned
@@ -184,3 +186,13 @@ python query_books.py        # -> runs real SQL queries against books.db
   sort of `books.csv` in plain Python — identical top 5, in the same
   order, confirming the SQL result is actually correct and not just
   plausible-looking.
+- **`scrape_github.py`**: `scrape_quotes_login.py`'s login is fake — any
+  password works, so it never actually proves auth is doing anything.
+  This one is real: fetches the token this environment's `gh` CLI is
+  already authenticated with (`gh auth token`, never printed/logged/
+  written to any file — checked with `grep` for the token prefix across
+  every file in the repo afterward, found nothing) and requests
+  `/user/repos`. Concrete proof the auth is real and not a no-op: the
+  response included **1 private repo** — something GitHub's API would
+  simply omit for an unauthenticated request. That's the actual point of
+  this script; the CSV of repo names is secondary to that.

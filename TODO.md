@@ -6,13 +6,6 @@ Next steps for this scraping-practice project, roughly in order.
 
 - [ ] **Pin dependencies** — add a `requirements.txt` so the environment
   is reproducible instead of "whatever was installed in this session."
-- [ ] **A real, genuinely authenticated real-login target** — the
-  `scrape_quotes_login.py` login is fake (any password works). Use the
-  GitHub API with the `gh` CLI's already-configured auth token to fetch
-  real, private-to-this-account data (e.g. your own repo list) — a
-  genuinely authenticated request against a real service, with zero
-  legal/ethical ambiguity since it's your own account's own data via the
-  official API.
 - [ ] **Automated tests for the scrapers** — write pytest tests for the
   parsing logic specifically (not hitting the network on every test run —
   test against saved fixture HTML/JSON instead), since verifying
@@ -59,3 +52,7 @@ Next steps for this scraping-practice project, roughly in order.
 - [x] SQLite storage (`scrape_books_db.py` + `query_books.py`) — reused
   `scrape_books.py`'s own parsing logic; verified the SQL "top 5 most
   expensive" result against an independent Python sort of `books.csv`.
+- [x] A real, genuinely authenticated target (`scrape_github.py`) — the
+  GitHub API via the `gh` CLI's existing token; found 1 private repo,
+  proving the auth is real and not a no-op like the sandbox's fake login.
+  Confirmed the token itself never got printed/logged/written anywhere.
