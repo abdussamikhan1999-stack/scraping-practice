@@ -4,27 +4,10 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-- [ ] **Concurrency** — right now every scraper fetches pages one at a
-  time. Try `httpx` with `asyncio` (or a thread pool) to fetch multiple
-  pages in parallel and measure the real speedup, now that the CPU-cost
-  comparison from `scrape_quotes_api.py` already shows why this matters.
-- [ ] **Scrapy** — rebuild one of the existing scrapers (probably the
-  books one) as a proper Scrapy spider instead of a hand-rolled loop, to
-  see what a real framework gives you for free (retries, concurrency,
-  item pipelines) vs. doing it manually.
-
-## Later / lower priority
-
-- [ ] **Respect `robots.txt` deliberately** — add a check (or use a
-  library) that reads and respects the target site's `robots.txt` before
-  scraping, as a matter of habit rather than an afterthought.
-- [ ] **Error handling / retries** — none of the current scripts retry on
-  a failed request or handle a site being temporarily down; add basic
-  retry-with-backoff.
-- [ ] **A real (not sandbox) target** — once comfortable with the above,
-  pick one real site and actually apply the `/scrp/` notes' legal-risk
-  checklist (public data, no login, no hammering the server) before
-  scraping it for real.
+- [ ] **A real (not sandbox) target** — pick one real site and actually
+  apply the `/scrp/` notes' legal-risk checklist (public data, no login,
+  no hammering the server) before scraping it for real. This is the last
+  item — everything else on this list is done.
 
 ## Done
 
@@ -39,3 +22,12 @@ Next steps for this scraping-practice project, roughly in order.
 - [x] Login-gated scraping (`scrape_quotes_login.py`) — CSRF token
   handling, `requests.Session()`, and confirming (by diffing HTML) that
   logging in actually unlocks a real extra field before assuming it does.
+- [x] Concurrency (`scrape_quotes_concurrent.py`) — `httpx` + `asyncio`,
+  ~8.8x faster wall-clock than the sequential version for less CPU.
+- [x] Scrapy (`books_spider.py`) — rebuilt the books scraper as a proper
+  spider; robots.txt handling and correct encoding came for free, which
+  the hand-rolled version had to build/fix manually.
+- [x] robots.txt handling + retry-with-backoff (`polite_requests.py`) —
+  wrapped into `scrape_books.py`; both pieces verified against real
+  endpoints (a known robots.txt-disallowed Google path, and a reliable
+  always-500 test endpoint), not just trusted by inspection.

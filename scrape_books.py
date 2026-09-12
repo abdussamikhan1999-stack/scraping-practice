@@ -2,12 +2,18 @@
 First scraper: pull every book's title, price, and rating from
 books.toscrape.com (a sandbox site built specifically for practicing
 scraping), across all pages, and save to a CSV.
+
+Uses polite_requests.get_with_retry() instead of a plain requests.get() —
+checks robots.txt before fetching (books.toscrape.com doesn't have one, so
+this is a no-op here, but it's a real check, not a formality — see
+polite_requests.py) and retries with backoff on connection errors/5xx/429.
 """
 import csv
 import time
 
-import requests
 from bs4 import BeautifulSoup
+
+from polite_requests import get_with_retry
 
 BASE_URL = "https://books.toscrape.com/catalogue/page-{}.html"
 RATING_WORDS = {"One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5}
@@ -15,7 +21,7 @@ RATING_WORDS = {"One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5}
 
 def fetch_page(page_num):
     url = BASE_URL.format(page_num)
-    response = requests.get(url, timeout=10)
+    response = get_with_retry(url, timeout=10)
     if response.status_code == 404:
         return None
     response.raise_for_status()

@@ -11,13 +11,16 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `discover_api.py` | quotes.toscrape.com/scroll | Playwright (network logging) | Not a scraper — opens the page and logs every XHR/fetch response, to find a hidden JSON API instead of guessing |
 | `scrape_quotes_api.py` | quotes.toscrape.com/scroll | `requests` (hitting the API `discover_api.py` found) | Same data as the JS scraper, but no browser at all — see the comparison below |
 | `scrape_quotes_login.py` | quotes.toscrape.com/login | `requests.Session()` | Login-gated — some content is only visible once authenticated |
+| `scrape_quotes_concurrent.py` | quotes.toscrape.com/scroll | `httpx` + `asyncio` | Fetches pages in parallel batches instead of one at a time — see the timing comparison below |
+| `books_spider.py` | books.toscrape.com | Scrapy | Same catalogue as `scrape_books.py`, rebuilt as a proper Scrapy spider instead of a hand-rolled loop |
+| `polite_requests.py` | (utility, not a scraper) | `requests` + `urllib.robotparser` | Wraps `requests.get()` with a real robots.txt check and retry-with-backoff; used by `scrape_books.py` |
 
 ## Setup
 
 ```
 python3 -m venv .venv
 source .venv/bin/activate
-pip install requests beautifulsoup4 lxml playwright
+pip install requests beautifulsoup4 lxml playwright httpx scrapy
 python -m playwright install chromium
 ```
 
@@ -30,6 +33,8 @@ python scrape_quotes_js.py   # -> quotes.csv (100 quotes, text/author/tags)
 python discover_api.py       # -> prints the JSON API URL it finds, nothing saved
 python scrape_quotes_api.py  # -> quotes_api.csv (same 100 quotes, no browser)
 python scrape_quotes_login.py  # -> quotes_login.csv (same quotes + goodreads_link, only visible logged in)
+python scrape_quotes_concurrent.py  # -> quotes_concurrent.csv (same quotes, ~9x faster)
+scrapy runspider books_spider.py -o books_scrapy.csv  # -> same 1000 books, via Scrapy
 ```
 
 ## Lessons learned
@@ -82,3 +87,58 @@ python scrape_quotes_login.py  # -> quotes_login.csv (same quotes + goodreads_li
   quote pointing at the real goodreads.com author page. The scraper
   captures that extra `goodreads_link` field — the concrete, checked
   reason this login step is worth doing at all, not an assumption.
+- **`scrape_quotes_concurrent.py`**: same data as `scrape_quotes_api.py`,
+  but fetches pages in concurrent batches of 5 with `httpx.AsyncClient` +
+  `asyncio.gather` instead of one at a time. The catch: you don't know the
+  total page count up front (it's discovered one `has_next` flag at a
+  time), so this fetches a batch of page numbers speculatively and stops
+  once a batch comes back with no more pages needed — checked first that
+  requesting an out-of-range page number (e.g. page 100) returns a normal
+  `200` with an empty quote list rather than an error, so slightly
+  over-fetching past the real last page is harmless. The result, run
+  back-to-back on the same machine:
+
+  | | wall-clock | user CPU |
+  |---|---|---|
+  | `scrape_quotes_api.py` (sequential) | 14.9s | 0.32s |
+  | `scrape_quotes_concurrent.py` (batches of 5) | 1.7s | 0.17s |
+
+  **~8.8x faster wall-clock, for slightly *less* CPU** — concurrency here
+  is close to a free win, because the bottleneck was never CPU, it was
+  waiting on the network one request at a time. This is the clearest
+  lesson in this repo so far: sequential I/O-bound loops waste almost all
+  their wall-clock time doing nothing but waiting.
+- **`books_spider.py`**: the same 1000 books as `scrape_books.py`, but
+  what Scrapy gives you for free versus the hand-rolled version is the
+  actual lesson here, not the data itself:
+  - `ROBOTSTXT_OBEY = True` is the *default* — Scrapy checked
+    `books.toscrape.com/robots.txt` on its own before crawling anything
+    (visible in the run stats as `robotstxt/request_count: 1`); the
+    `scrape_books.py`/`polite_requests.py` version had to be built by hand.
+  - `response.follow(next_page)` replaces manually formatting a
+    `page-{n}.html` URL string.
+  - `-o books_scrapy.csv` replaces the entire `csv.DictWriter` block.
+  - The `£` encoding bug from `scrape_books.py` **did not happen here** —
+    Scrapy's response decoding handled it correctly with zero extra code,
+    unlike plain `requests` which needed an explicit `response.encoding =
+    "utf-8"` fix.
+  The honest tradeoff: Scrapy has real conceptual overhead (its own spider/
+  callback/settings model) that isn't worth it for a 20-line one-off script
+  — it earns its keep once a crawl is big enough, or long-lived enough,
+  that retries/concurrency/robots.txt/encoding-correctness being handled
+  for you actually matters.
+- **`polite_requests.py`**: a small wrapper adding what `books_spider.py`
+  gets for free from Scrapy, to the plain-`requests` scripts instead.
+  Verified both pieces actually work rather than trusting the code by
+  inspection alone:
+  - `is_allowed()` correctly returned `False` for `google.com/search`
+    (Google's robots.txt disallows that path for most agents) and `True`
+    for `google.com/` — proof it's a real check, not a function that
+    always returns `True`.
+  - `get_with_retry()` against a reliable always-500 test endpoint
+    (`httpbin.org/status/500`) retried twice with correctly-doubling
+    backoff (0.3s → 0.6s) before raising, confirming the exponential
+    backoff math and the attempt-count limit both work as written.
+  - Deliberately does *not* raise on a 404 — `scrape_books.py` relies on
+    getting a plain 404 response back (not an exception) to detect "past
+    the last page," so only 429/5xx/connection errors trigger a retry.
