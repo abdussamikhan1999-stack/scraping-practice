@@ -7,3 +7,4 @@ quotes_api.csv
 quotes_login.csv
 quotes_concurrent.csv
 books_scrapy.csv
+hackernews.csv

@@ -4,10 +4,12 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-- [ ] **A real (not sandbox) target** — pick one real site and actually
-  apply the `/scrp/` notes' legal-risk checklist (public data, no login,
-  no hammering the server) before scraping it for real. This is the last
-  item — everything else on this list is done.
+Nothing currently queued — every item below is done. Good candidates for
+a future round: a login-required *real* site (as opposed to the sandbox's
+fake login), a site that actually needs `curl_cffi`/stealth-browser
+tricks to get past anti-bot protection (rather than just detecting one
+and switching targets, like `discover_api.py` did), or storing scraped
+data in a real database instead of a CSV.
 
 ## Done
 
@@ -31,3 +33,9 @@ Next steps for this scraping-practice project, roughly in order.
   wrapped into `scrape_books.py`; both pieces verified against real
   endpoints (a known robots.txt-disallowed Google path, and a reliable
   always-500 test endpoint), not just trusted by inspection.
+- [x] A real (non-sandbox) target (`scrape_hackernews.py`) — Hacker
+  News' official public API, checked against the legal-risk checklist
+  first (public, no login, sanctioned access method, no robots.txt to
+  violate, self-imposed a request cap since HN doesn't publish one).
+  Reused the concurrency pattern from `scrape_quotes_concurrent.py`
+  rather than writing a slow version first.

@@ -14,6 +14,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `scrape_quotes_concurrent.py` | quotes.toscrape.com/scroll | `httpx` + `asyncio` | Fetches pages in parallel batches instead of one at a time — see the timing comparison below |
 | `books_spider.py` | books.toscrape.com | Scrapy | Same catalogue as `scrape_books.py`, rebuilt as a proper Scrapy spider instead of a hand-rolled loop |
 | `polite_requests.py` | (utility, not a scraper) | `requests` + `urllib.robotparser` | Wraps `requests.get()` with a real robots.txt check and retry-with-backoff; used by `scrape_books.py` |
+| `scrape_hackernews.py` | Hacker News (real site) | `httpx` + `asyncio` | The first non-sandbox target — Hacker News' own official public API, not scraped HTML |
 
 ## Setup
 
@@ -35,6 +36,7 @@ python scrape_quotes_api.py  # -> quotes_api.csv (same 100 quotes, no browser)
 python scrape_quotes_login.py  # -> quotes_login.csv (same quotes + goodreads_link, only visible logged in)
 python scrape_quotes_concurrent.py  # -> quotes_concurrent.csv (same quotes, ~9x faster)
 scrapy runspider books_spider.py -o books_scrapy.csv  # -> same 1000 books, via Scrapy
+python scrape_hackernews.py  # -> hackernews.csv (top 30 HN stories, real site)
 ```
 
 ## Lessons learned
@@ -142,3 +144,28 @@ scrapy runspider books_spider.py -o books_scrapy.csv  # -> same 1000 books, via 
   - Deliberately does *not* raise on a 404 — `scrape_books.py` relies on
     getting a plain 404 response back (not an exception) to detect "past
     the last page," so only 429/5xx/connection errors trigger a retry.
+- **`scrape_hackernews.py`**: the first real (non-sandbox) target,
+  checked against the `/scrp/` notes' legal-risk factors *before* writing
+  any code, not after:
+  - Public data, no login wall.
+  - Not scraping HTML at all — Hacker News' own GitHub
+    (`github.com/HackerNews/API`) documents and endorses this exact API
+    specifically so third parties don't have to scrape their pages. This
+    is the sanctioned access method, not a workaround.
+  - `hacker-news.firebaseio.com/robots.txt` is a 404 (checked directly) —
+    nothing to violate, and no rate limit is published, so this
+    self-imposes one anyway (`STORY_LIMIT = 30`, not the full ~500-story
+    list) rather than assuming unlimited access is fine just because
+    nothing stops it technically.
+  - Reuses the concurrency pattern from `scrape_quotes_concurrent.py`:
+    fetching each of the 30 stories' details one at a time would be the
+    same slow, network-idle pattern that script measured — so this
+    fetches them concurrently with `httpx` + `asyncio.gather` from the
+    start, rather than writing the slow version first.
+  - Handles two edge cases the toscrape.com sandbox never has: a story
+    can be `None` if it was deleted between the two API calls (filtered
+    out), and text/"Ask HN" posts have no `url` field at all (`.get(...,
+    "")` instead of `s["url"]`, which would `KeyError`). Worth being
+    honest that this particular run's top 30 didn't happen to include a
+    text post, so that specific branch is defensively correct by
+    inspection, not something this run actually exercised.
