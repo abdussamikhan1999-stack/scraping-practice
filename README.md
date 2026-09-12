@@ -15,6 +15,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `books_spider.py` | books.toscrape.com | Scrapy | Same catalogue as `scrape_books.py`, rebuilt as a proper Scrapy spider instead of a hand-rolled loop |
 | `polite_requests.py` | (utility, not a scraper) | `requests` + `urllib.robotparser` | Wraps `requests.get()` with a real robots.txt check and retry-with-backoff; used by `scrape_books.py` |
 | `scrape_hackernews.py` | Hacker News (real site) | `httpx` + `asyncio` | The first non-sandbox target — Hacker News' own official public API, not scraped HTML |
+| `scrape_books_db.py` + `query_books.py` | books.toscrape.com | `sqlite3` | Same books data as `scrape_books.py`, stored in SQLite instead of CSV, plus real SQL queries on top |
 
 ## Setup
 
@@ -37,6 +38,8 @@ python scrape_quotes_login.py  # -> quotes_login.csv (same quotes + goodreads_li
 python scrape_quotes_concurrent.py  # -> quotes_concurrent.csv (same quotes, ~9x faster)
 scrapy runspider books_spider.py -o books_scrapy.csv  # -> same 1000 books, via Scrapy
 python scrape_hackernews.py  # -> hackernews.csv (top 30 HN stories, real site)
+python scrape_books_db.py    # -> books.db (same 1000 books, in SQLite)
+python query_books.py        # -> runs real SQL queries against books.db
 ```
 
 ## Lessons learned
@@ -169,3 +172,15 @@ python scrape_hackernews.py  # -> hackernews.csv (top 30 HN stories, real site)
     honest that this particular run's top 30 didn't happen to include a
     text post, so that specific branch is defensively correct by
     inspection, not something this run actually exercised.
+- **`scrape_books_db.py` / `query_books.py`**: reuses
+  `scrape_books.py`'s own `scrape_all_books()` instead of duplicating the
+  fetch/parse logic — the only new thing here is *where the data ends
+  up*. Price is converted from `"£51.77"` (a string) to `51.77` (a real
+  `REAL` column) at write time — the schema enforces this once, instead
+  of every reader having to re-parse the currency string themselves.
+  Re-running the script `DELETE`s and re-inserts rather than appending, so
+  it's safe to run repeatedly without accumulating duplicates. Verified
+  `query_books.py`'s "top 5 most expensive" result against an independent
+  sort of `books.csv` in plain Python — identical top 5, in the same
+  order, confirming the SQL result is actually correct and not just
+  plausible-looking.

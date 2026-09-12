@@ -6,10 +6,6 @@ Next steps for this scraping-practice project, roughly in order.
 
 - [ ] **Pin dependencies** — add a `requirements.txt` so the environment
   is reproducible instead of "whatever was installed in this session."
-- [ ] **SQLite storage** — refactor at least one scraper to write into a
-  local SQLite database instead of a CSV, plus a small script that runs
-  an actual SQL query against the result (e.g. "top 5 most expensive
-  books"), to see what a real query engine gives you over grepping a CSV.
 - [ ] **A real, genuinely authenticated real-login target** — the
   `scrape_quotes_login.py` login is fake (any password works). Use the
   GitHub API with the `gh` CLI's already-configured auth token to fetch
@@ -58,3 +54,8 @@ Next steps for this scraping-practice project, roughly in order.
   violate, self-imposed a request cap since HN doesn't publish one).
   Reused the concurrency pattern from `scrape_quotes_concurrent.py`
   rather than writing a slow version first.
+- [x] Pin dependencies (`requirements.txt`) — verified reproducible in a
+  completely fresh venv, not just the one already set up.
+- [x] SQLite storage (`scrape_books_db.py` + `query_books.py`) — reused
+  `scrape_books.py`'s own parsing logic; verified the SQL "top 5 most
+  expensive" result against an independent Python sort of `books.csv`.
