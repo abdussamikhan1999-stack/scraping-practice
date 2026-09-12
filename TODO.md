@@ -4,12 +4,6 @@ Next steps for this scraping-practice project, roughly in order.
 
 ## Next up
 
-- [ ] **Login-gated scraping** — practice authenticating first (session/
-  cookies) before scraping data that's behind a login wall. toscrape.com
-  has a login-protected version (`quotes.toscrape.com/login`) built for
-  exactly this. New wrinkle: maintaining a `requests.Session()` (or a
-  logged-in Playwright browser context) across requests instead of
-  one-off calls.
 - [ ] **Concurrency** — right now every scraper fetches pages one at a
   time. Try `httpx` with `asyncio` (or a thread pool) to fetch multiple
   pages in parallel and measure the real speedup, now that the CPU-cost
@@ -42,3 +36,6 @@ Next steps for this scraping-practice project, roughly in order.
   around a Cloudflare-protected site that flat-out 403s plain `requests`.
 - [x] Hitting that API directly (`scrape_quotes_api.py`) and measuring
   the real CPU-cost difference vs. driving a browser.
+- [x] Login-gated scraping (`scrape_quotes_login.py`) — CSRF token
+  handling, `requests.Session()`, and confirming (by diffing HTML) that
+  logging in actually unlocks a real extra field before assuming it does.

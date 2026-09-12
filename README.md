@@ -10,6 +10,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 | `scrape_quotes_js.py` | quotes.toscrape.com/js | Playwright | JS-rendered — the raw HTML is empty, content is filled in by a script after load, so a real browser is required |
 | `discover_api.py` | quotes.toscrape.com/scroll | Playwright (network logging) | Not a scraper — opens the page and logs every XHR/fetch response, to find a hidden JSON API instead of guessing |
 | `scrape_quotes_api.py` | quotes.toscrape.com/scroll | `requests` (hitting the API `discover_api.py` found) | Same data as the JS scraper, but no browser at all — see the comparison below |
+| `scrape_quotes_login.py` | quotes.toscrape.com/login | `requests.Session()` | Login-gated — some content is only visible once authenticated |
 
 ## Setup
 
@@ -28,6 +29,7 @@ python scrape_books.py       # -> books.csv (1000 books, title/price/rating)
 python scrape_quotes_js.py   # -> quotes.csv (100 quotes, text/author/tags)
 python discover_api.py       # -> prints the JSON API URL it finds, nothing saved
 python scrape_quotes_api.py  # -> quotes_api.csv (same 100 quotes, no browser)
+python scrape_quotes_login.py  # -> quotes_login.csv (same quotes + goodreads_link, only visible logged in)
 ```
 
 ## Lessons learned
@@ -67,3 +69,16 @@ python scrape_quotes_api.py  # -> quotes_api.csv (same 100 quotes, no browser)
   a plain HTTP GET. That gap is invisible on one small script running
   locally — it's the whole story once you're running hundreds of
   concurrent scrape jobs and paying for compute.
+- **`scrape_quotes_login.py`**: fetch the login page, pull the
+  `csrf_token` hidden input out of the form with BeautifulSoup, POST it
+  back alongside `username`/`password` (any values work on this sandbox —
+  it's not checking a real user database) on a `requests.Session()`, then
+  reuse that *same* session for every later request — the session object
+  carries the resulting auth cookie automatically, you never touch it by
+  hand. To confirm logging in actually did something (rather than just
+  logging in for its own sake), diffed the logged-in vs. logged-out HTML
+  byte-for-byte: logged-out pages only link to each quote's `(about)`
+  page, while logged-in pages add a second `(Goodreads page)` link per
+  quote pointing at the real goodreads.com author page. The scraper
+  captures that extra `goodreads_link` field — the concrete, checked
+  reason this login step is worth doing at all, not an assumption.
