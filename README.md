@@ -21,7 +21,7 @@ scripts, covering the core decision tree for "how do I scrape this":
 ```
 python3 -m venv .venv
 source .venv/bin/activate
-pip install requests beautifulsoup4 lxml playwright httpx scrapy
+pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
